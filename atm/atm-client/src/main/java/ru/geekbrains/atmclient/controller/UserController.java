@@ -9,8 +9,11 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import ru.geekbrains.atmclient.handler.AuthHandler;
 import ru.geekbrains.atmclient.handler.CardOperationHandler;
 import ru.geekbrains.atmclient.model.Bill;
+import ru.geekbrains.atmclient.operation.CardOperationRequest;
 
 import java.util.List;
+
+import static ru.geekbrains.atmclient.operation.CardOperationType.*;
 
 @Controller
 @RequiredArgsConstructor
@@ -44,14 +47,14 @@ public class UserController {
     @GetMapping("/cashIn")
     public String cashInPage() {
         authHandler.checkAuthorized();
-        cardOperationHandler.cashInPrepare();
+        cardOperationHandler.handle(CASH_IN_PREPARE);
         return "cashIn";
     }
 
     @PostMapping("/cashIn")
     public String cashIn(Model model) {
         authHandler.checkAuthorized();
-        int amount = cardOperationHandler.cashIn();
+        Integer amount = cardOperationHandler.handle(CASH_IN).getAmount();
         model.addAttribute("cashAmount", amount);
         return "redirect:/user";
     }
@@ -65,7 +68,10 @@ public class UserController {
     @PostMapping("/cashOut")
     public String cashOut(Model model, Integer amount) {
         authHandler.checkAuthorized();
-        boolean status = cardOperationHandler.cashOut(amount);
+        Boolean status = cardOperationHandler.handle(CASH_OUT, CardOperationRequest.builder()
+                .amount(amount)
+                .build())
+                .getStatus();
         model.addAttribute("operationStatus", status);
         return "redirect:/user";
     }
@@ -73,7 +79,7 @@ public class UserController {
     @GetMapping("/balance")
     public String balancePage(Model model) {
         authHandler.checkAuthorized();
-        int balance = cardOperationHandler.getBalance();
+        Integer balance = cardOperationHandler.handle(GET_BALANCE).getAmount();
         model.addAttribute("balance", balance);
         return "balance";
     }
@@ -81,7 +87,7 @@ public class UserController {
     @GetMapping("/bills")
     public String payBillPage(Model model) {
         authHandler.checkAuthorized();
-        List<Bill> billsList = cardOperationHandler.getBillsList();
+        List<Bill> billsList = cardOperationHandler.handle(GET_BILLS_LIST).getBillList();
         model.addAttribute("billsList", billsList);
         return "bills";
     }
@@ -89,7 +95,10 @@ public class UserController {
     @PostMapping("/bill")
     public String payBill(Model model, Bill bill) {
         authHandler.checkAuthorized();
-        boolean status = cardOperationHandler.payBill(bill);
+        Boolean status = cardOperationHandler.handle(PAY_BILL, CardOperationRequest.builder()
+                .bill(bill)
+                .build())
+                .getStatus();
         model.addAttribute("operationStatus", status);
         return "redirect:/user";
     }
