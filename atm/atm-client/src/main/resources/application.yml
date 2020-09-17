@@ -1,0 +1,21 @@
+server:
+  port: 8080
+  servlet:
+    context-path: /
+
+app:
+  internal-storage:
+    path: internal
+    logs: logs
+    video-records: video
+  external-storage:
+    path: external
+  remote-server:
+    url: http://localhost:8081
+    operation-url: /
+  cache-expiring:
+    bill:
+      value: 1
+      unit: HOURS
+
+
