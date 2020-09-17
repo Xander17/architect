@@ -1,70 +1,47 @@
 package ru.geekbrains.atmclient.handler;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
-import ru.geekbrains.atmclient.model.Bill;
-import ru.geekbrains.atmclient.service.HardwareService;
-import ru.geekbrains.atmclient.service.ServerService;
-import ru.geekbrains.atmclient.service.SessionService;
+import ru.geekbrains.atmclient.operation.CardOperationRequest;
+import ru.geekbrains.atmclient.operation.CardOperationResponse;
+import ru.geekbrains.atmclient.operation.CardOperationType;
+import ru.geekbrains.atmclient.operation.command.*;
 
-import java.util.List;
+import java.util.HashMap;
+import java.util.Map;
+
+import static ru.geekbrains.atmclient.operation.CardOperationType.*;
 
 @Component
 public class CardOperationHandler {
-    private final HardwareService hardwareService;
-    private final ServerService serverService;
-    private final SessionService sessionService;
+
+    private final Map<CardOperationType, CardOperation> map;
 
     @Autowired
-    public CardOperationHandler(HardwareService hardwareService,
-                                @Qualifier("billsCachedServerService") ServerService serverService,
-                                SessionService sessionService) {
-        this.hardwareService = hardwareService;
-        this.serverService = serverService;
-        this.sessionService = sessionService;
+    public CardOperationHandler(CashInPrepareOperation cashInPrepareOperation,
+                                CashInOperation cashInOperation,
+                                CashOutOperation cashOutOperation,
+                                GetBalanceOperation getBalanceOperation,
+                                GetBillsListOperation getBillsListOperation,
+                                PayBillOperation payBillOperation) {
+        map = new HashMap<>();
+        map.put(CASH_IN_PREPARE, cashInPrepareOperation);
+        map.put(CASH_IN, cashInOperation);
+        map.put(CASH_OUT, cashOutOperation);
+        map.put(GET_BALANCE, getBalanceOperation);
+        map.put(GET_BILLS_LIST, getBillsListOperation);
+        map.put(PAY_BILL, payBillOperation);
     }
 
-    public void cashInPrepare() {
-        hardwareService.cashInPrepare();
+    public CardOperationResponse handle(CardOperationType type) {
+        return handle(type, new CardOperationRequest());
     }
 
-    public int cashIn() {
-        int amount = hardwareService.cashIn();
-        String token = sessionService.getToken();
-        serverService.cashIn(token, amount);
-        return amount;
-    }
-
-    public boolean cashOut(int amount) {
-        String token = sessionService.getToken();
-        if (serverService.getBalance(token) >= amount) {
-            hardwareService.cashOut(amount);
-            serverService.cashOut(token, amount);
-            return true;
+    public CardOperationResponse handle(CardOperationType type, CardOperationRequest request) {
+        CardOperation cardOperation = map.get(type);
+        if (cardOperation == null) {
+            throw new UnsupportedOperationException();
         }
-        return false;
-    }
-
-    public int getBalance() {
-        String token = sessionService.getToken();
-        return serverService.getBalance(token);
-    }
-
-    public List<Bill> getBillsList() {
-        String token = sessionService.getToken();
-        return serverService.getBillsList(token);
-    }
-
-    public boolean payBill(Bill bill) {
-        String token = sessionService.getToken();
-        if (serverService.getBalance(token) >= bill.getAmount()) {
-            int amountIn = hardwareService.cashIn();
-            if (amountIn == bill.getAmount()) {
-                serverService.payBill(token, bill);
-                return true;
-            }
-        }
-        return false;
+        return cardOperation.execute(request);
     }
 }
